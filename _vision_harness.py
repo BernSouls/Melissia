@@ -20,10 +20,12 @@ Usage:
     python diagnostics/_vision_harness.py --train 8 --test 3 \
         --canon 512 --grid 16 --steps 4
 
-Deviation from the drafted spec: none in the query path -- CategoryLabel
-objects are used as drafted. The one change is the corpus: only 10 unique
-photographs per class exist (the other 10 ETH-80 files were -map masks),
-so the max split is 7 train / 3 test, not 8/3.
+Dataset layout: the ETH-80 corpus has 8 categories × 10 object instances ×
+41 views (3,280 RGB images), plus one `-map.png` mask per image. The default
+8-train / 3-test split takes the first 11 sorted paths per class, so it uses
+views of the same first object in each class; label every accuracy result
+"one object per class, views only". `--stratify` is the optional
+instance-disjoint alternative.
 """
 from __future__ import annotations
 
@@ -522,9 +524,12 @@ def train_pass(items, canon, grid, steps, stack, t_counter):
 
 
 def consolidate_pass(stack, t_counter, labels, f1_falsifier=False):
-    """[G.1.6c] f1_falsifier=True advances t between labels. The canonical
-    instrument keeps all labels at one t, which means they share one MCS
-    budget ledger (consolidator._reset_step_budget only zeroes on t change).
+    """Legacy timing probe: f1_falsifier=True advances t between labels.
+
+    Since G.2.1, `_discriminative_core_impl` starts a fresh MCS ledger for
+    every extraction, independent of t. The flag therefore no longer
+    isolates a shared-ledger failure; it remains only as a compatibility
+    diagnostic and changes the recorded extraction times.
     """
     buf = stack["window_buffer"]
     cons = stack["consolidator"]
@@ -801,9 +806,10 @@ def main(argv: Optional[List[str]] = None) -> int:
                     help="Corpus root (default: data/ETH-80-master). "
                          "Recursive match, -map.png masks excluded.")
     ap.add_argument("--f1-falsifier", action="store_true",
-                    help="[F1 falsifier, harness-side only] Advance t between "
-                         "classes in the consolidation pass so each label gets "
-                         "a fresh MCS budget ledger.")
+                    help="[legacy timing probe] Advance t between labels. "
+                         "G.2.1 now gives every extraction a fresh MCS budget "
+                         "independent of t, so this no longer falsifies a "
+                         "shared-ledger failure.")
     ap.add_argument("--mcs-budget", type=int, default=None,
                     help="Experiment only (NOT a fix): override the module-"
                          "level consolidator.MCS_BUDGET_PER_STEP for this "
@@ -829,7 +835,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     print(f"data   : {DATA}")
     print(f"config : canon {args.canon}, GRID_N {args.grid}, steps {args.steps}")
     print(f"split  : {args.train} train / {args.test} test per class")
-    print(f"f1     : falsifier {'ON (t advances per class)' if args.f1_falsifier else 'off (one t for all classes)'}")
+    print(f"f1     : legacy t-advance probe {'ON' if args.f1_falsifier else 'off'} (MCS budget resets per extraction either way)")
     print(f"trigger: MIN_INSTANCES={P.LABEL_MIN_INSTANCES}, "
           f"capacity={P.LABEL_WINDOW_CAPACITY}, max_age={P.LABEL_MAX_AGE_STEPS}")
 
