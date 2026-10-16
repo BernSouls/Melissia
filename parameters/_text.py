@@ -412,6 +412,12 @@ ASPECT_PERSIST_CAP: int = 64
 ASPECT_GRADED_PARTS: bool = False
 ASPECT_PART_SLOTS: Tuple[int, ...] = (0, 1, 5)
 
+# [Item D] Score each remembered view with the corrected evidence function
+# (cores.evidence_score) inside the view memory. SHIPPED DARK (off): the
+# view memory has no core subgraph per view, so this requires a bridge that
+# is not yet built; see report. Default off.
+ASPECT_EVIDENCE_SCORING: bool = False
+
 # =============================================================================
 # [Q3] NEGATIVE (ANTI-PHASE) COUPLING
 # =============================================================================
